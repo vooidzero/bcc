@@ -1668,6 +1668,25 @@ class BPF(object):
             readers[i] = v
         lib.perf_reader_poll(len(readers), readers, timeout)
 
+
+
+    def perf_buffer_epoll_create(self):
+        """
+        Returns epollfd, readers
+        """
+        readers = (ct.c_void_p * len(self.perf_buffers))()
+        for i, v in enumerate(self.perf_buffers.values()):
+            readers[i] = v
+        epollfd = lib.perf_epoll_create(len(readers), readers)
+        if epollfd < 0:
+            raise Exception("Perf epoll create failed")
+        return epollfd, readers
+
+    def perf_buffer_epoll(self, epollfd, readers, timeout_ms = -1):
+        lib.perf_reader_epoll(epollfd, len(readers), readers, timeout_ms)
+
+
+
     def perf_buffer_consume(self):
         """perf_buffer_consume(self)
 

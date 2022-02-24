@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <linux/types.h>
 #include <linux/perf_event.h>
+#include <sys/epoll.h>
 
 #include "libbpf.h"
 #include "perf_reader.h"
@@ -251,4 +252,43 @@ void perf_reader_set_fd(struct perf_reader *reader, int fd) {
 
 int perf_reader_fd(struct perf_reader *reader) {
   return reader->fd;
+}
+
+
+
+int perf_epoll_create(int num_readers, struct perf_reader **readers)
+{
+  int epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+  if (epoll_fd < 0) {
+    return -1;
+	}
+
+  struct epoll_event e;
+  for (int i = 0; i < num_readers; i++) {
+    memset(&e, 0, sizeof(e));
+    e.data.fd = i;
+    e.events = EPOLLIN;
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, readers[i]->fd, &e) < 0) {
+      close(epoll_fd);
+		  return -1;
+	  }
+  }
+  return epoll_fd;
+}
+
+int perf_reader_epoll(int epoll_fd, int num_readers, struct perf_reader **readers, int timeout_ms)
+{
+  struct epoll_event events[num_readers];
+	int i, cnt;
+
+	cnt = epoll_wait(epoll_fd, events, num_readers, timeout_ms);
+	if (cnt < 0)
+		return -1;
+
+	for (i = 0; i < cnt; i++) {
+		__u32 reader_id = events[i].data.fd;
+		perf_reader_event_read(readers[reader_id]);
+	}
+
+	return 0;
 }
