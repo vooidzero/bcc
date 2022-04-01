@@ -634,7 +634,8 @@ StatusTuple BPF::close_perf_event(const std::string& name) {
 StatusTuple BPF::open_perf_buffer(const std::string& name,
                                   perf_reader_raw_cb cb,
                                   perf_reader_lost_cb lost_cb, void* cb_cookie,
-                                  int page_cnt) {
+                                  int page_cnt,
+                                  int wakeup_events) {
   if (perf_buffers_.find(name) == perf_buffers_.end()) {
     TableStorage::iterator it;
     if (!bpf_module_->table_storage().Find(Path({bpf_module_->id(), name}), it))
@@ -646,7 +647,7 @@ StatusTuple BPF::open_perf_buffer(const std::string& name,
   if ((page_cnt & (page_cnt - 1)) != 0)
     return StatusTuple(-1, "open_perf_buffer page_cnt must be a power of two");
   auto table = perf_buffers_[name];
-  TRY2(table->open_all_cpu(cb, lost_cb, cb_cookie, page_cnt));
+  TRY2(table->open_all_cpu(cb, lost_cb, cb_cookie, page_cnt, wakeup_events));
   return StatusTuple::OK();
 }
 

@@ -248,7 +248,8 @@ class BPF {
   StatusTuple open_perf_buffer(const std::string& name, perf_reader_raw_cb cb,
                                perf_reader_lost_cb lost_cb = nullptr,
                                void* cb_cookie = nullptr,
-                               int page_cnt = DEFAULT_PERF_BUFFER_PAGE_CNT);
+                               int page_cnt = DEFAULT_PERF_BUFFER_PAGE_CNT,
+                               int wakeup_events = 1);
   // Close and free the Perf Buffer of given name.
   StatusTuple close_perf_buffer(const std::string& name);
   // Obtain an pointer to the opened BPFPerfBuffer instance of given name.
