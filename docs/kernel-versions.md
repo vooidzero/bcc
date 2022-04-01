@@ -154,6 +154,7 @@ mmap() support for array maps | 5.5 | [`fc9702273e2e`](https://git.kernel.org/pu
 `LOOKUP_BATCH` | 5.6 | [`cb4d03ab499d`](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=cb4d03ab499d4c040f4ab6fd4389d2b49f42b5a5)
 `UPDATE_BATCH`, `DELETE_BATCH` | 5.6 | [`aa2e93b8e58e`](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=aa2e93b8e58e18442edfb2427446732415bc215e)
 `LOOKUP_AND_DELETE_BATCH` | 5.6 | [`057996380a42`](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=057996380a42bb64ccc04383cfa9c0ace4ea11f0)
+`LOOKUP_AND_DELETE_ELEM` support for hash maps | 5.14 | [`3e87f192b405`](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=3e87f192b405960c0fe83e0925bd0dadf4f8cf43)
 
 ## XDP
 
@@ -252,6 +253,7 @@ Helper | Kernel version | License | Commit |
 `BPF_FUNC_get_stackid()` | 4.6 | GPL | [`d5a3b1f69186`](https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=d5a3b1f691865be576c2bffa708549b8cdccda19)
 `BPF_FUNC_get_task_stack()` | 5.9 | | [`fa28dcb82a38`](https://kernel.googlesource.com/pub/scm/linux/kernel/git/bpf/bpf-next/+/fa28dcb82a38f8e3993b0fae9106b1a80b59e4f0)
 `BPF_FUNC_getsockopt()` | 4.15 |  | [`cd86d1fd2102`](https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=cd86d1fd21025fdd6daf23d1288da405e7ad0ec6)
+`BPF_FUNC_ima_file_hash()` | 5.18 |  | [`174b16946e39`](https://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf-next.git/commit?id=174b16946e39ebd369097e0f773536c91a8c1a4c)
 `BPF_FUNC_ima_inode_hash()` | 5.11 |  | [`27672f0d280a`](https://github.com/torvalds/linux/commit/27672f0d280a3f286a410a8db2004f46ace72a17)
 `BPF_FUNC_inode_storage_delete()` | 5.10 |  | [`8ea636848aca`](https://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git/commit?id=8ea636848aca35b9f97c5b5dee30225cf2dd0fe6)
 `BPF_FUNC_inode_storage_get()` | 5.10 |  | [`8ea636848aca`](https://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git/commit?id=8ea636848aca35b9f97c5b5dee30225cf2dd0fe6)
@@ -344,6 +346,7 @@ Helper | Kernel version | License | Commit |
 `BPF_FUNC_skb_load_bytes_relative()` | 4.18 |  | [`4e1ec56cdc59`](https://git.kernel.org/cgit/linux/kernel/git/davem/net-next.git/commit/?id=4e1ec56cdc59746943b2acfab3c171b930187bbe)
 `BPF_FUNC_skb_output()` | 5.5 |  | [`a7658e1a4164`](https://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf-next.git/commit/?id=a7658e1a4164ce2b9eb4a11aadbba38586e93bd6)
 `BPF_FUNC_skb_pull_data()` | 4.9 |  | [`36bbef52c7eb`](https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=36bbef52c7eb646ed6247055a2acd3851e317857)
+`BPF_FUNC_skb_set_tstamp()` | 5.18 |  | [`9bb984f28d5b`](https://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf-next.git/commit?id=9bb984f28d5bcb917d35d930fcfb89f90f9449fd)
 `BPF_FUNC_skb_set_tunnel_key()` | 4.3 |  | [`d3aa45ce6b94`](https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=d3aa45ce6b94c65b83971257317867db13e5f492)
 `BPF_FUNC_skb_set_tunnel_opt()` | 4.6 |  | [`14ca0751c96f`](https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=14ca0751c96f8d3d0f52e8ed3b3236f8b34d3460)
 `BPF_FUNC_skb_store_bytes()` | 4.1 |  | [`91bc4822c3d6`](https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=91bc4822c3d61b9bb7ef66d3b77948a4f9177954)
