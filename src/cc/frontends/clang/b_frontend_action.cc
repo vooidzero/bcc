@@ -879,8 +879,15 @@ bool BTypeVisitor::VisitCallExpr(CallExpr *Call) {
         if (!A->getName().startswith("maps"))
           return true;
 
-        string args = rewriter_.getRewrittenText(expansionRange(SourceRange(GET_BEGINLOC(Call->getArg(0)),
-                                                   GET_ENDLOC(Call->getArg(Call->getNumArgs() - 1)))));
+        string args;
+        if (Call->getNumArgs() != 0) {
+          args = rewriter_.getRewrittenText(
+            expansionRange(SourceRange(
+              GET_BEGINLOC(Call->getArg(0)),
+              GET_ENDLOC(Call->getArg(Call->getNumArgs() - 1))
+            ))
+          );
+        }
 
         // find the table fd, which was opened at declaration time
         TableStorage::iterator desc;
@@ -939,6 +946,8 @@ bool BTypeVisitor::VisitCallExpr(CallExpr *Call) {
             txt += update + ", &_key, &_zleaf, BPF_NOEXIST); } ";
           }
           txt += "})";
+        } else if (memb_name == "fd") {
+          txt = "(void *)bpf_pseudo_fd(1, " + fd + ")";
         } else if (memb_name == "perf_submit") {
           string name = string(Ref->getDecl()->getName());
           string arg0 = rewriter_.getRewrittenText(expansionRange(Call->getArg(0)->getSourceRange()));

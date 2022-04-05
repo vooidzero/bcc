@@ -210,6 +210,7 @@ struct _name##_table_t __##_name
 struct _name##_table_t { \
   int key; \
   u32 leaf; \
+  void* (*fd)(void); \
   /* map.perf_submit(ctx, data, data_size) */ \
   int (*perf_submit) (void *, void *, u32); \
   int (*perf_submit_skb) (void *, u32, void *, u32); \
