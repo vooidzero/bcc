@@ -139,7 +139,7 @@ if (USINGISYSTEM AND GCC_VERSION VERSION_LESS 6.0)
 endif()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 endif(NOT PYTHON_ONLY)
 
@@ -160,3 +160,5 @@ add_subdirectory(tests)
 endif(ENABLE_TESTS)
 # add_subdirectory(tools)
 endif(ENABLE_CLANG_JIT)
+
+add_subdirectory(play/cc)
