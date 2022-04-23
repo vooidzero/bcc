@@ -39,6 +39,8 @@ void perf_reader_set_fd(struct perf_reader *reader, int fd);
 int perf_epoll_create(int num_readers, struct perf_reader **readers);
 int perf_reader_epoll(int epoll_fd, int num_readers, struct perf_reader **readers, int timeout_ms);
 
+void perf_reader_event_read_simple(struct perf_reader *reader);
+
 #ifdef __cplusplus
 }
 #endif

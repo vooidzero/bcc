@@ -32,6 +32,14 @@
 #include "libbpf.h"
 #include "perf_reader.h"
 
+#ifdef __GNUC__
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)     __builtin_expect(!!(x), 0)
+#else
+#define likely(x)       (x)
+#define unlikely(x)     (x)
+#endif
+
 enum {
   RB_NOT_USED = 0, // ring buffer not usd
   RB_USED_IN_MUNMAP = 1, // used in munmap
@@ -125,25 +133,25 @@ static void parse_sw(struct perf_reader *reader, void *data, int size) {
   } *raw = NULL;
 
   ptr += sizeof(*header);
-  if (ptr > (uint8_t *)data + size) {
+  if (unlikely(ptr > (uint8_t *)data + size)) {
     fprintf(stderr, "%s: corrupt sample header\n", __FUNCTION__);
     return;
   }
 
   raw = (void *)ptr;
   ptr += sizeof(raw->size) + raw->size;
-  if (ptr > (uint8_t *)data + size) {
+  if (unlikely(ptr > (uint8_t *)data + size)) {
     fprintf(stderr, "%s: corrupt raw sample\n", __FUNCTION__);
     return;
   }
 
   // sanity check
-  if (ptr != (uint8_t *)data + size) {
+  if (unlikely(ptr != (uint8_t *)data + size)) {
     fprintf(stderr, "%s: extra data at end of sample\n", __FUNCTION__);
     return;
   }
 
-  if (reader->raw_cb)
+  if (likely(reader->raw_cb))
     reader->raw_cb(reader->cb_cookie, raw->data, raw->size);
 }
 
@@ -291,4 +299,66 @@ int perf_reader_epoll(int epoll_fd, int num_readers, struct perf_reader **reader
 	}
 
 	return 0;
+}
+
+
+struct perf_event_sample {
+    struct perf_event_header header;
+    uint32_t size;
+    char data[0];
+};
+
+void perf_reader_event_read_simple(struct perf_reader *reader) {
+  volatile struct perf_event_mmap_page *perf_header = reader->base;
+  uint64_t buffer_size = (uint64_t)reader->page_size * reader->page_cnt;
+  uint8_t *base = (uint8_t *)reader->base + reader->page_size;
+  uint8_t *sentinel = base + buffer_size;
+  uint64_t data_tail = perf_header->data_tail;
+  uint64_t data_head;
+  uint8_t *begin, *end;
+  struct perf_event_header *e;
+  size_t ehsz;
+
+  while (1) {
+    data_head = read_data_head(perf_header);
+    if (data_head == data_tail) {
+      break;
+    }
+    do {
+      uint8_t *ptr;
+      begin = base + (data_tail & (buffer_size - 1));
+      ptr = begin;
+      e = (void *)begin;
+      ehsz = e->size;
+      end = base + ((data_tail + ehsz) & (buffer_size - 1));
+      
+      if (unlikely(end < begin)) {
+        reader->buf = realloc(reader->buf, ehsz);
+        size_t len = sentinel - begin;
+        memcpy(reader->buf, begin, len);
+        memcpy((void *)((unsigned long)reader->buf + len), base, ehsz - len);
+        ptr = reader->buf;
+      }
+
+      if (e->type == PERF_RECORD_LOST) {
+        uint64_t lost = *(uint64_t *)(ptr + sizeof(*e) + sizeof(uint64_t));
+        if (reader->lost_cb) {
+          reader->lost_cb(reader->cb_cookie, lost);
+        } else {
+          fprintf(stderr, "Possibly lost %" PRIu64 " samples\n", lost);
+        }
+      } else if (e->type == PERF_RECORD_SAMPLE) {
+        struct perf_event_sample *sample = (struct perf_event_sample*)ptr;  
+        if (likely(reader->raw_cb)) {
+          reader->raw_cb(reader->cb_cookie, sample->data, sample->size);
+        }
+      } else {
+        fprintf(stderr, "%s: unknown sample type %d\n", __FUNCTION__, e->type);
+      }
+
+      data_tail += ehsz;
+    } while (data_head != data_tail);
+
+    write_data_tail(perf_header, data_tail);
+  }
 }
