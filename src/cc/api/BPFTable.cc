@@ -415,15 +415,6 @@ StatusTuple BPFPerfBuffer::open_on_cpu(perf_reader_raw_cb cb, perf_reader_lost_c
                        std::strerror(errno));
   }
 
-  struct epoll_event event = {};
-  event.events = EPOLLIN;
-  event.data.ptr = static_cast<void*>(reader);
-  if (epoll_ctl(epfd_, EPOLL_CTL_ADD, reader_fd, &event) != 0) {
-    perf_reader_free(static_cast<void*>(reader));
-    return StatusTuple(-1, "Unable to add perf_reader FD to epoll: %s",
-                       std::strerror(errno));
-  }
-
   cpu_readers_[opts.cpu] = reader;
   return StatusTuple::OK();
 }
@@ -443,8 +434,6 @@ StatusTuple BPFPerfBuffer::open_all_cpu(perf_reader_raw_cb cb,
     return StatusTuple(-1, "Previously opened perf buffer not cleaned");
 
   std::vector<int> cpus = get_online_cpus();
-  ep_events_.reset(new epoll_event[cpus.size()]);
-  epfd_ = epoll_create1(EPOLL_CLOEXEC);
 
   for (int i : cpus) {
     struct bcc_perf_buffer_opts opts = {
@@ -479,12 +468,12 @@ StatusTuple BPFPerfBuffer::close_all_cpu() {
   if (epfd_ >= 0) {
     int close_res = close(epfd_);
     epfd_ = -1;
-    ep_events_.reset();
     if (close_res != 0) {
       has_error = true;
       errors += std::string(std::strerror(errno)) + "\n";
     }
   }
+  ep_events_.reset();
 
   std::vector<int> opened_cpus;
   for (auto it : cpu_readers_)
@@ -503,19 +492,49 @@ StatusTuple BPFPerfBuffer::close_all_cpu() {
   return StatusTuple::OK();
 }
 
-int BPFPerfBuffer::poll(int timeout_ms) {
-  if (epfd_ < 0)
-    return -1;
+StatusTuple BPFPerfBuffer::setup_poll() {
+  if (epfd_ >= 0) {
+    return StatusTuple(0, "Epoll has already set up");
+  }
+  ep_events_.reset(new epoll_event[cpu_readers_.size()]);
+  epfd_ = epoll_create1(EPOLL_CLOEXEC);
+  for (auto it : cpu_readers_) {
+    auto reader = it.second;
+    struct epoll_event event = {};
+    event.events = EPOLLIN;
+    event.data.ptr = static_cast<void*>(reader);
+    if (epoll_ctl(epfd_, EPOLL_CTL_ADD, perf_reader_fd(reader), &event) != 0) {
+      close(epfd_);
+      epfd_ = -1;
+      return StatusTuple(-1, "Unable to add perf_reader FD to epoll: %s", std::strerror(errno));
+    }
+  }
+  return StatusTuple::OK();
+}
+
+int BPFPerfBuffer::do_poll(int timeout_ms) {
   int cnt =
-      epoll_wait(epfd_, ep_events_.get(), cpu_readers_.size(), timeout_ms);
+    epoll_wait(epfd_, ep_events_.get(), cpu_readers_.size(), timeout_ms);
   for (int i = 0; i < cnt; i++)
     perf_reader_event_read(static_cast<perf_reader*>(ep_events_[i].data.ptr));
   return cnt;
 }
 
-int BPFPerfBuffer::consume() {
-  if (epfd_ < 0)
+int BPFPerfBuffer::poll(int timeout_ms) {
+  if (epfd_ >= 0) {
+    return do_poll(timeout_ms);
+  }
+  if (ep_events_ != nullptr && epfd_ < 0) {
     return -1;
+  }
+  if (!setup_poll().ok()) {
+    std::cerr << "Failed to create epoll for perf_read\n";
+    return -1;
+  }
+  return do_poll(timeout_ms);
+}
+
+int BPFPerfBuffer::consume() {
   for (auto it : cpu_readers_)
     perf_reader_event_read(it.second);
   return 0;
@@ -526,6 +545,45 @@ BPFPerfBuffer::~BPFPerfBuffer() {
   if (!res.ok())
     std::cerr << "Failed to close all perf buffer on destruction: " << res.msg()
               << std::endl;
+}
+
+PerfBufferEpoller::PerfBufferEpoller(std::vector<perf_reader*> readers)
+  : num_readers{readers.size()}, ep_events_{new epoll_event[readers.size()]}
+{
+  epfd_ = epoll_create1(EPOLL_CLOEXEC);
+  for (auto reader : readers) {
+    struct epoll_event event = {};
+    event.events = EPOLLIN;
+    event.data.ptr = static_cast<void*>(reader);
+    if (epoll_ctl(epfd_, EPOLL_CTL_ADD, perf_reader_fd(reader), &event) != 0) {
+      close(epfd_);
+      epfd_ = -1;
+      std::cerr << "Unable to add perf_reader FD to epoll: "
+                << std::strerror(errno) << std::endl;
+      break;
+    }
+  }
+}
+
+PerfBufferEpoller::~PerfBufferEpoller() {
+  if (epfd_ >= 0) {
+    int close_res = close(epfd_);
+    epfd_ = -1;
+    if (close_res != 0) {
+      std::cerr << std::strerror(errno) << std::endl;
+    }
+  }
+}
+
+int PerfBufferEpoller::poll(int timeout_ms) {
+  if (epfd_ < 0) {
+    return -1;
+  }
+  int cnt =
+    epoll_wait(epfd_, ep_events_.get(), num_readers, timeout_ms);
+  for (int i = 0; i < cnt; i++)
+    perf_reader_event_read_simple(static_cast<perf_reader*>(ep_events_[i].data.ptr));
+  return cnt;
 }
 
 BPFPerfEventArray::BPFPerfEventArray(const TableDesc& desc)

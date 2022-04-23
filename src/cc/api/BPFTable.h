@@ -418,7 +418,13 @@ class BPFPerfBuffer : public BPFTableBase<int, int> {
   StatusTuple open_all_cpu(perf_reader_raw_cb cb, perf_reader_lost_cb lost_cb,
                            void* cb_cookie, int page_cnt, int wakeup_events);
   StatusTuple close_all_cpu();
+
+  /// Create epoll. This would be called in poll() if not called previously
+  StatusTuple setup_poll();
+
+  /// if setup_poll() is not called previously and setup_epoll() fails, return -1
   int poll(int timeout_ms);
+  
   int consume();
 
  private:
@@ -426,10 +432,26 @@ class BPFPerfBuffer : public BPFTableBase<int, int> {
                           void* cb_cookie, int page_cnt, struct bcc_perf_buffer_opts& opts);
   StatusTuple close_on_cpu(int cpu);
 
+  int do_poll(int timeout_ms);
+
   std::map<int, perf_reader*> cpu_readers_;
 
   int epfd_;
   std::unique_ptr<epoll_event[]> ep_events_;
+
+public:
+  const std::map<int, perf_reader*>& get_cpu_readers() const { return cpu_readers_; }
+};
+
+class PerfBufferEpoller {
+  int epfd_ = -1;
+  size_t num_readers;
+  std::unique_ptr<epoll_event[]> ep_events_;
+public:
+  PerfBufferEpoller(std::vector<perf_reader*> readers);
+  ~PerfBufferEpoller();
+  bool ok() { return epfd_ >= 0; }
+  int poll(int timeout_ms);
 };
 
 class BPFPerfEventArray : public BPFTableBase<int, int> {
